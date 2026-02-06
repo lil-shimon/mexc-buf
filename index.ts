@@ -30,9 +30,10 @@ const run = () => {
 
     try {
       const decode = fromBinary(PushDataV3ApiWrapperSchema, bytes)
-      console.log(decode)
+      console.log(decode.body)
+      console.log(decode.body.value)
     } catch (err) {
-    console.error(err)
+      console.error(err)
     }
   });
 };
