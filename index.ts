@@ -59,6 +59,18 @@ const MexcClientLive = Layer.succeed(MexcClient, {
   send: (ws, req) => Effect.sync(() => ws.send(JSON.stringify(req))),
 });
 
+const receive = (ws: Websocket): Effect.Effect<Buffer, NetworkError> =>
+  Effect.tryPromise({
+    try: () =>
+      new Promise<Buffer>((resolve, reject) => {
+        ws.once("message", (data) => {
+          resolve(data as Buffer);
+        });
+        ws.once("error", (err) => reject(err));
+      }),
+    catch: () => new NetworkError({ message: "receive failed" }),
+  });
+
 const run = Effect.gen(function*() {
   const config = yield* Config;
   const req = yield* ReqClient;
@@ -66,6 +78,9 @@ const run = Effect.gen(function*() {
 
   const ws = yield* client.connect(config.endpoint);
   yield* client.send(ws, req);
+
+  const data = receive(ws);
+  console.log(data);
 });
 
 const mainLive = Layer.mergeAll(ConfigLive, MexcClientLive, ReqClientLive);
