@@ -7,7 +7,6 @@
  * 実行: bun run examples/06-todo-exercises.ts
  */
 import { Effect, Data, Context, Layer, Console, pipe } from "effect";
-import { EffectTypeId } from "effect/Effect";
 
 // ============================================
 // 型定義（これは使ってOK）
@@ -88,6 +87,13 @@ const findById = (id: number): Effect.Effect<Todo, NotFoundError> =>
 
 // ここに toggle を実装してください
 // const toggle = (id: number): Effect.Effect<Todo, NotFoundError> => ...
+
+const toggle = (id: number): Effect.Effect<Todo, NotFoundError> =>
+  Effect.gen(function*() {
+    const todo = yield* findById(id);
+    todo.done = !todo.done;
+    return todo;
+  });
 
 // ============================================
 // 問4: 全部繋げて実行する
