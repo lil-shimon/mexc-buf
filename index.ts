@@ -99,6 +99,9 @@ const run = Effect.gen(function*() {
     Stream.filter((data) => typeof data !== "string"),
     Stream.mapEffect((data) =>
       decode(data).pipe(
+        // NOTE: 最初にくるメッセージのハンドリングが必要かも。
+        // エラーが発生する。
+        // 今は握りつぶしてる。return Effect.succeed(null)
         Effect.catchTag("DecodeError", (err) => {
           console.log(String(err));
           return Effect.succeed(null);
