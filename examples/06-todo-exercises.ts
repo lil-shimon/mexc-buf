@@ -7,7 +7,6 @@
  * 実行: bun run examples/06-todo-exercises.ts
  */
 import { Effect, Data, Context, Layer, Console, pipe } from "effect";
-import { not } from "effect/Predicate";
 
 // ============================================
 // 型定義（これは使ってOK）
@@ -125,12 +124,12 @@ const program = Effect.gen(function*() {
 
 const piped = program.pipe(
   Effect.catchTag("ValidationError", (e) => {
-    console.log("ValidationError: ", e.reason);
+    Console.log("ValidationError: ", e.reason);
     return Effect.succeed(false);
   }),
 
   Effect.catchTag("NotFoundError", (e) => {
-    console.log("NotFoundError. ID: ", e.id);
+    Console.log("NotFoundError. ID: ", e.id);
     return Effect.succeed(false);
   }),
 );
