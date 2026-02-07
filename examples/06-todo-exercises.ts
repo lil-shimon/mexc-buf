@@ -68,8 +68,17 @@ const add = (title: string): Effect.Effect<Todo, ValidationError> =>
 // ============================================
 
 // ここに findById を実装してください
-// const findById = (id: number): Effect.Effect<Todo, NotFoundError> => ...
 
+const findById = (id: number): Effect.Effect<Todo, NotFoundError> =>
+  Effect.gen(function*() {
+    const todo = todos.find((t) => t.id === id);
+
+    if (!todo) {
+      return yield* Effect.fail(new NotFoundError({ id }));
+    }
+
+    return todo;
+  });
 // ============================================
 // 問3: toggle - TODOの完了状態を切り替える
 //
