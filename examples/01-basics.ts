@@ -98,6 +98,7 @@ const lower = pipe(
 );
 Effect.runSync(lower);
 
+
 // 2. pipe を使って、数値を 2倍 → 文字列化 → "Price: xxx" の形に変換してみよう
 
 const number = Effect.succeed(300);
