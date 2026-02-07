@@ -1,41 +1,66 @@
-import { Console, Effect } from "effect";
-import { PushDataV3ApiWrapperSchema } from "./gen/PushDataV3ApiWrapper_pb";
+import { Data, Effect, Context, Layer, Console } from "effect";
 import Websocket from "ws";
-import { fromBinary } from "@bufbuild/protobuf";
 
-const program = Console.log("Hello world");
-const endpoint = "wss://wbs-api.mexc.com/ws";
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  message: string;
+}> { }
 
-const req = {
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly endpoint: string;
+  }
+>() { }
+
+class ReqClient extends Context.Tag("ReqClient")<
+  ReqClient,
+  {
+    readonly method: string;
+    readonly params: string[];
+  }
+>() { }
+
+class MexcClient extends Context.Tag("MexcClient")<
+  MexcClient,
+  {
+    readonly connect: (
+      endpoint: string,
+    ) => Effect.Effect<Websocket, NetworkError>;
+  }
+>() { }
+
+const ConfigLive = Layer.succeed(Config, {
+  endpoint: "wss://wbs-api.mexc.com/ws",
+});
+
+const ReqClientLive = Layer.succeed(ReqClient, {
   method: "SUBSCRIPTION",
   params: ["spot@public.aggre.deals.v3.api.pb@100ms@BTCUSDT"],
-};
+});
 
-Effect.runSync(program);
+const MexcClientLive = Layer.succeed(MexcClient, {
+  connect: (endpoint) =>
+    Effect.tryPromise({
+      try: () =>
+        new Promise<Websocket>((resolve, reject) => {
+          const ws = new Websocket(endpoint);
+          ws.on("open", () => {
+            console.log("open");
+            resolve(ws);
+          });
+          ws.on("error", (err) => reject(err));
+        }),
+      catch: () => new NetworkError({ message: "NetworkError" }),
+    }),
+});
 
-const ws = new Websocket(endpoint);
+const run = Effect.gen(function*() {
+  const config = yield* Config;
+  const req = yield* ReqClient;
+  const client = yield* MexcClient;
 
-const run = () => {
-  ws.on("open", () => {
-    ws.send(JSON.stringify(req));
-  });
+  yield* client.connect(config.endpoint);
+});
 
-  ws.on("message", (data) => {
-    if (typeof data === 'string') {
-      console.log('data is string')
-      return;
-    }
-
-    const bytes = data instanceof Buffer ? new Uint8Array(data) : data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data as any)
-
-    try {
-      const decode = fromBinary(PushDataV3ApiWrapperSchema, bytes)
-      console.log(decode.body)
-      console.log(decode.body.value)
-    } catch (err) {
-      console.error(err)
-    }
-  });
-};
-
-run();
+const mainLive = Layer.mergeAll(ConfigLive, MexcClientLive, ReqClientLive);
+Effect.runPromise(run.pipe(Effect.provide(mainLive)));
