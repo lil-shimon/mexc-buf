@@ -1,4 +1,4 @@
-import { Data, Effect, Context, Layer } from "effect";
+import { Data, Effect, Context, Layer, Stream } from "effect";
 import Websocket from "ws";
 
 class NetworkError extends Data.TaggedError("NetworkError")<{
@@ -71,6 +71,21 @@ const receive = (ws: Websocket): Effect.Effect<Buffer, NetworkError> =>
     catch: () => new NetworkError({ message: "receive failed" }),
   });
 
+const messageStream = (ws: Websocket) =>
+  Stream.async<Buffer, NetworkError>((emit) => {
+    ws.on("message", (data) => {
+      emit.single(data as Buffer);
+    });
+
+    ws.on("error", (err) => {
+      emit.fail(new NetworkError({ message: String(err) }));
+    });
+
+    ws.on("close", () => {
+      emit.end();
+    });
+  });
+
 const run = Effect.gen(function*() {
   const config = yield* Config;
   const req = yield* ReqClient;
@@ -79,8 +94,8 @@ const run = Effect.gen(function*() {
   const ws = yield* client.connect(config.endpoint);
   yield* client.send(ws, req);
 
-  const data = receive(ws);
-  console.log(data);
+  const data = yield* receive(ws);
+  console.log(data.length, "bytes received");
 });
 
 const mainLive = Layer.mergeAll(ConfigLive, MexcClientLive, ReqClientLive);
