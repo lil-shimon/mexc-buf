@@ -7,6 +7,7 @@
  * 実行: bun run examples/06-todo-exercises.ts
  */
 import { Effect, Data, Context, Layer, Console, pipe } from "effect";
+import { not } from "effect/Predicate";
 
 // ============================================
 // 型定義（これは使ってOK）
@@ -109,6 +110,32 @@ const toggle = (id: number): Effect.Effect<Todo, NotFoundError> =>
 
 // ここに program を実装してください
 
+const program = Effect.gen(function*() {
+  yield* add("買い物");
+  yield* add("掃除");
+  yield* add("料理");
+
+  const toggled = yield* toggle(2);
+  yield* Console.log("toggled", toggled.title, toggled.id, toggled.done);
+
+  const notFound = yield* findById(99);
+
+  yield* Console.log(notFound);
+});
+
+const piped = program.pipe(
+  Effect.catchTag("ValidationError", (e) => {
+    console.log("ValidationError: ", e.reason);
+    return Effect.succeed(false);
+  }),
+
+  Effect.catchTag("NotFoundError", (e) => {
+    console.log("NotFoundError. ID: ", e.id);
+    return Effect.succeed(false);
+  }),
+);
+
+Effect.runSync(piped);
 // ============================================
 // 問5（ボーナス）: TodoRepository Service を作る
 //
