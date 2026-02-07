@@ -56,15 +56,7 @@ const MexcClientLive = Layer.succeed(MexcClient, {
         }),
       catch: () => new NetworkError({ message: "NetworkError" }),
     }),
-  send: (ws, req) =>
-    Effect.tryPromise({
-      try: () =>
-        new Promise((_, reject) => {
-          ws.send(JSON.stringify(req));
-          ws.on("error", (err) => reject(err));
-        }),
-      catch: () => new NetworkError({ message: "send: NetworkError" }),
-    }),
+  send: (ws, req) => Effect.sync(() => ws.send(JSON.stringify(req))),
 });
 
 const run = Effect.gen(function*() {
