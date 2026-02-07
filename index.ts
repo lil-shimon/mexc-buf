@@ -1,4 +1,4 @@
-import { Data, Effect, Context, Layer, Console } from "effect";
+import { Data, Effect, Context, Layer } from "effect";
 import Websocket from "ws";
 
 class NetworkError extends Data.TaggedError("NetworkError")<{
@@ -26,6 +26,10 @@ class MexcClient extends Context.Tag("MexcClient")<
     readonly connect: (
       endpoint: string,
     ) => Effect.Effect<Websocket, NetworkError>;
+    readonly send: (
+      ws: Websocket,
+      req: Context.Tag.Service<typeof ReqClient>,
+    ) => Effect.Effect<void, NetworkError>;
   }
 >() { }
 
@@ -52,6 +56,15 @@ const MexcClientLive = Layer.succeed(MexcClient, {
         }),
       catch: () => new NetworkError({ message: "NetworkError" }),
     }),
+  send: (ws, req) =>
+    Effect.tryPromise({
+      try: () =>
+        new Promise((_, reject) => {
+          ws.send(JSON.stringify(req));
+          ws.on("error", (err) => reject(err));
+        }),
+      catch: () => new NetworkError({ message: "send: NetworkError" }),
+    }),
 });
 
 const run = Effect.gen(function*() {
@@ -59,7 +72,8 @@ const run = Effect.gen(function*() {
   const req = yield* ReqClient;
   const client = yield* MexcClient;
 
-  yield* client.connect(config.endpoint);
+  const ws = yield* client.connect(config.endpoint);
+  yield* client.send(ws, req);
 });
 
 const mainLive = Layer.mergeAll(ConfigLive, MexcClientLive, ReqClientLive);
