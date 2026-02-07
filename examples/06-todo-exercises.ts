@@ -7,6 +7,7 @@
  * 実行: bun run examples/06-todo-exercises.ts
  */
 import { Effect, Data, Context, Layer, Console, pipe } from "effect";
+import { EffectTypeId } from "effect/Effect";
 
 // ============================================
 // 型定義（これは使ってOK）
@@ -24,11 +25,11 @@ interface Todo {
 
 class NotFoundError extends Data.TaggedError("NotFoundError")<{
   id: number;
-}> {}
+}> { }
 
 class ValidationError extends Data.TaggedError("ValidationError")<{
   reason: string;
-}> {}
+}> { }
 
 // ============================================
 // 問1: add - TODOを追加する
@@ -42,6 +43,22 @@ const todos: Todo[] = [];
 
 // ここに add を実装してください
 // const add = (title: string): Effect.Effect<Todo, ValidationError> => ...
+
+const add = (title: string): Effect.Effect<Todo, ValidationError> =>
+  Effect.gen(function*() {
+    if (title === "") {
+      return yield* Effect.fail(
+        new ValidationError({ reason: "title is required" }),
+      );
+    }
+
+    const id = todos.length + 1;
+    const done = false;
+
+    const newTodo: Todo = { id, title, done };
+    todos.push(newTodo);
+    return newTodo;
+  });
 
 // ============================================
 // 問2: findById - IDでTODOを検索する
