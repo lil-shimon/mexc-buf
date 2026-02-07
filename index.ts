@@ -1,7 +1,13 @@
+import { fromBinary } from "@bufbuild/protobuf";
 import { Data, Effect, Context, Layer, Stream, pipe, Console } from "effect";
 import Websocket from "ws";
+import { PushDataV3ApiWrapperSchema } from "./gen/PushDataV3ApiWrapper_pb";
 
 class NetworkError extends Data.TaggedError("NetworkError")<{
+  message: string;
+}> { }
+
+class DecodeError extends Data.TaggedError("DecodeError")<{
   message: string;
 }> { }
 
@@ -74,6 +80,13 @@ const messageStream = (ws: Websocket) =>
     });
   });
 
+const decode = (data: Buffer) =>
+  Effect.try({
+    try: () => fromBinary(PushDataV3ApiWrapperSchema, new Uint8Array(data)),
+    catch: (err) =>
+      new DecodeError({ message: `protobuf decode error: ${String(err)}` }),
+  });
+
 const run = Effect.gen(function*() {
   const config = yield* Config;
   const req = yield* ReqClient;
@@ -83,7 +96,16 @@ const run = Effect.gen(function*() {
   yield* client.send(ws, req);
 
   yield* messageStream(ws).pipe(
-    Stream.runForEach((data) => Console.log(data.length)),
+    Stream.filter((data) => typeof data !== "string"),
+    Stream.mapEffect((data) =>
+      decode(data).pipe(
+        Effect.catchTag("DecodeError", (err) => {
+          console.log(String(err));
+          return Effect.succeed(null);
+        }),
+      ),
+    ),
+    Stream.runForEach((data) => Console.log(data)),
   );
 });
 
