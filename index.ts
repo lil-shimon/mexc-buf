@@ -1,5 +1,13 @@
 import { fromBinary } from "@bufbuild/protobuf";
-import { Data, Effect, Context, Layer, Stream, pipe, Console } from "effect";
+import {
+  Data,
+  Effect,
+  Context,
+  Layer,
+  Stream,
+  Console,
+  Schedule,
+} from "effect";
 import Websocket from "ws";
 import { PushDataV3ApiWrapperSchema } from "./gen/PushDataV3ApiWrapper_pb";
 
@@ -87,6 +95,12 @@ const decode = (data: Buffer) =>
       new DecodeError({ message: `protobuf decode error: ${String(err)}` }),
   });
 
+const pingLoop = (ws: Websocket) =>
+  Effect.repeat(
+    Effect.sync(() => ws.send(JSON.stringify({ method: "ping" }))),
+    Schedule.spaced("30 seconds"),
+  );
+
 const run = Effect.gen(function*() {
   const config = yield* Config;
   const req = yield* ReqClient;
@@ -94,6 +108,8 @@ const run = Effect.gen(function*() {
 
   const ws = yield* client.connect(config.endpoint);
   yield* client.send(ws, req);
+
+  yield* Effect.fork(pingLoop(ws));
 
   yield* messageStream(ws).pipe(
     Stream.filter((data) => typeof data !== "string"),
