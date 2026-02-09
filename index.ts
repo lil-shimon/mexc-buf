@@ -11,11 +11,11 @@ import {
 import Websocket from "ws";
 import { PushDataV3ApiWrapperSchema } from "./gen/PushDataV3ApiWrapper_pb";
 
-class NetworkError extends Data.TaggedError("NetworkError")<{
+export class NetworkError extends Data.TaggedError("NetworkError")<{
   message: string;
 }> { }
 
-class DecodeError extends Data.TaggedError("DecodeError")<{
+export class DecodeError extends Data.TaggedError("DecodeError")<{
   message: string;
 }> { }
 
@@ -83,14 +83,14 @@ const messageStream = (ws: Websocket) =>
     });
   });
 
-const decode = (data: Buffer) =>
+export const decode = (data: Buffer) =>
   Effect.try({
     try: () => fromBinary(PushDataV3ApiWrapperSchema, new Uint8Array(data)),
     catch: (err) =>
       new DecodeError({ message: `protobuf decode error: ${String(err)}` }),
   });
 
-const pingLoop = (ws: Websocket) =>
+export const pingLoop = (ws: Websocket) =>
   Effect.repeat(
     Effect.sync(() => ws.send(JSON.stringify({ method: "ping" }))),
     Schedule.spaced("30 seconds"),
@@ -123,5 +123,7 @@ const run = Effect.gen(function*() {
   );
 });
 
-const mainLive = Layer.mergeAll(ConfigLive, MexcClientLive, ReqClientLive);
-Effect.runPromise(run.pipe(Effect.provide(mainLive)));
+if (import.meta.main) {
+  const mainLive = Layer.mergeAll(ConfigLive, MexcClientLive, ReqClientLive);
+  Effect.runPromise(run.pipe(Effect.provide(mainLive)));
+}
